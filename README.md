@@ -1,2 +1,1 @@
-# My-Lawyer-Friend
-Understand the law. Know your rights.
+An AI-powered platform that helps people understand Indian legal documents and court judgments in simple language.
