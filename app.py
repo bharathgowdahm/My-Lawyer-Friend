@@ -2,7 +2,16 @@ import streamlit as st
 from datetime import datetime
 from pypdf import PdfReader
 from google import genai
+# ============================================================
+# AI CONFIG
+# ============================================================
 
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+
+if GEMINI_API_KEY:
+    client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    client = None
 # ============================================================
 # MY LAWYER FRIEND — V1.1
 # Premium Indian Legal Information Platform
@@ -511,7 +520,240 @@ if st.session_state.page == "Home":
 # EXPLAIN JUDGMENT
 # ============================================================
 
+elif st.session_state.page == "Legal Q&A":
+    
+# ============================================================
+# EXPLAIN JUDGMENT — V1.2 AI ANALYZER
+# ============================================================
+
 elif st.session_state.page == "Explain a Judgment":
+
+    st.title("📄 Explain a Judgment")
+
+    st.write(
+        "Upload an Indian court judgment and get a "
+        "plain-language explanation."
+    )
+
+    uploaded = st.file_uploader(
+        "Choose a judgment PDF",
+        type=["pdf"],
+        help="Upload a court judgment PDF.",
+    )
+
+    if uploaded:
+
+        st.success(
+            f"✅ {uploaded.name} uploaded successfully"
+        )
+
+        st.caption(
+            f"File size: {uploaded.size / 1024:.1f} KB"
+        )
+
+        st.divider()
+
+        # ----------------------------------------------------
+        # EXTRACT PDF TEXT
+        # ----------------------------------------------------
+
+        if st.button(
+            "🔎 Analyze Judgment",
+            use_container_width=True,
+            type="primary",
+        ):
+
+            if not client:
+
+                st.error(
+                    "Gemini API key is not configured."
+                )
+
+                st.info(
+                    "Add GEMINI_API_KEY in "
+                    "Streamlit Cloud → Manage app → Settings → Secrets."
+                )
+
+                st.stop()
+
+            try:
+
+                with st.spinner(
+                    "📖 Reading the judgment..."
+                ):
+
+                    reader = PdfReader(uploaded)
+
+                    pages = []
+
+                    for page in reader.pages:
+
+                        text = page.extract_text()
+
+                        if text:
+                            pages.append(text)
+
+                    document_text = "\n".join(pages)
+
+                if not document_text.strip():
+
+                    st.error(
+                        "I couldn't extract readable text "
+                        "from this PDF."
+                    )
+
+                    st.info(
+                        "This may be a scanned/image-only PDF. "
+                        "OCR support will be added later."
+                    )
+
+                    st.stop()
+
+                # Limit extremely large documents
+                max_chars = 60000
+
+                document_text = document_text[:max_chars]
+
+                # ------------------------------------------------
+                # AI PROMPT
+                # ------------------------------------------------
+
+                prompt = f"""
+You are My Lawyer Friend, an Indian legal-information
+assistant.
+
+Analyze the following court judgment and explain it
+in simple language for an ordinary person.
+
+IMPORTANT:
+- Do not claim to be the user's lawyer.
+- Do not provide personalized legal advice.
+- Do not invent facts.
+- Clearly distinguish what the judgment actually says.
+- If information is unavailable, say "Not stated in the document".
+- Preserve important legal terms, sections and case names.
+- Make the explanation easy for a non-lawyer to understand.
+
+Return the analysis using these sections:
+
+1. CASE TITLE
+2. COURT
+3. DATE
+4. PARTIES
+5. CASE BACKGROUND
+6. IMPORTANT FACTS
+7. LEGAL ISSUES
+8. ARGUMENTS
+9. IMPORTANT LAWS / SECTIONS
+10. COURT'S REASONING
+11. FINAL DECISION
+12. SIMPLE EXPLANATION
+13. IMPORTANT TAKEAWAYS
+
+COURT JUDGMENT:
+
+{document_text}
+"""
+
+                # ------------------------------------------------
+                # AI GENERATION
+                # ------------------------------------------------
+
+                with st.spinner(
+                    "⚖️ Analyzing the judgment..."
+                ):
+
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt,
+                    )
+
+                analysis = response.text
+
+                # ------------------------------------------------
+                # RESULT
+                # ------------------------------------------------
+
+                st.success(
+                    "✅ Judgment analysis completed"
+                )
+
+                st.divider()
+
+                st.subheader(
+                    "⚖️ Judgment Explanation"
+                )
+
+                st.markdown(analysis)
+
+                # ------------------------------------------------
+                # DOWNLOAD
+                # ------------------------------------------------
+
+                st.download_button(
+                    label="⬇️ Download Explanation",
+                    data=analysis,
+                    file_name=(
+                        "my_lawyer_friend_analysis.txt"
+                    ),
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+
+                # ------------------------------------------------
+                # HISTORY
+                # ------------------------------------------------
+
+                add_history(
+                    "Judgment Analysis",
+                    uploaded.name,
+                )
+
+                st.divider()
+
+                st.warning(
+                    "⚠️ This explanation is generated for "
+                    "general educational/informational purposes. "
+                    "Verify important information against the "
+                    "original judgment and consult a qualified "
+                    "lawyer for advice about a specific matter."
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "Something went wrong while analyzing "
+                    "the judgment."
+                )
+
+                st.caption(
+                    f"Technical details: {str(e)}"
+                )
+
+    else:
+
+        st.info(
+            "📌 Upload a court judgment PDF to begin."
+        )
+
+        st.markdown("### What you'll get")
+
+        features = [
+            "📌 Case title and court",
+            "👥 Parties involved",
+            "📖 Background and facts",
+            "⚖️ Legal issues",
+            "🗣️ Arguments",
+            "📚 Important laws and sections",
+            "🧠 Court's reasoning",
+            "🏛️ Final decision",
+            "💡 Simple-language explanation",
+            "📝 Key takeaways",
+        ]
+
+        for feature in features:
+
+            st.write(feature)
 
     st.title("📄 Explain a Judgment")
 
