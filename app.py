@@ -594,10 +594,11 @@ def extract_pdf_text(uploaded_file):
     for i, page in enumerate(reader.pages):
         if i >= 200:
             break
-                    st.markdown("""
+st.markdown("""
 <div class="stat-num">AI</div>
 """, unsafe_allow_html=True)
-                    <div class="stat-label">Powered by Gemini</div>
+                   
+<div class="stat-label">Powered by Gemini</div>
                 </div>
                 <div>
                     <div class="stat-num">Free</div>
