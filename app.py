@@ -1,8 +1,8 @@
 import streamlit as st
 
-# ---------------------------------------------------------
+# ============================================================
 # PAGE CONFIG
-# ---------------------------------------------------------
+# ============================================================
 
 st.set_page_config(
     page_title="My Lawyer Friend",
@@ -11,27 +11,24 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------
+# ============================================================
 # CUSTOM CSS
-# ---------------------------------------------------------
+# ============================================================
 
 st.markdown(
     """
     <style>
 
-    /* Main background */
     .stApp {
         background: #f7f8fc;
     }
 
-    /* Remove Streamlit top spacing */
     .block-container {
+        max-width: 1250px;
         padding-top: 2rem;
         padding-bottom: 4rem;
-        max-width: 1250px;
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #101828;
     }
@@ -40,7 +37,6 @@ st.markdown(
         color: white;
     }
 
-    /* Hero */
     .hero {
         background: linear-gradient(
             135deg,
@@ -79,7 +75,6 @@ st.markdown(
         line-height: 1.6;
     }
 
-    /* Feature cards */
     .card {
         background: white;
         border: 1px solid #eaecf0;
@@ -87,12 +82,6 @@ st.markdown(
         padding: 25px;
         min-height: 190px;
         box-shadow: 0 8px 25px rgba(16,24,40,0.05);
-        transition: 0.2s ease;
-    }
-
-    .card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 14px 35px rgba(16,24,40,0.10);
     }
 
     .icon {
@@ -113,7 +102,6 @@ st.markdown(
         font-size: 14px;
     }
 
-    /* Section title */
     .section-title {
         font-size: 28px;
         font-weight: 750;
@@ -122,7 +110,6 @@ st.markdown(
         margin-bottom: 20px;
     }
 
-    /* Disclaimer */
     .disclaimer {
         background: #fffaeb;
         border: 1px solid #fedf89;
@@ -132,7 +119,6 @@ st.markdown(
         color: #7a2e0b;
     }
 
-    /* Footer */
     .footer {
         text-align: center;
         color: #98a2b3;
@@ -147,19 +133,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------
+# ============================================================
 # SIDEBAR
-# ---------------------------------------------------------
+# ============================================================
 
 with st.sidebar:
 
     st.markdown(
         """
-        <div style="font-size:28px;font-weight:800;">
-        ⚖️ My Lawyer Friend
+        <div style="font-size:26px;font-weight:800;">
+            ⚖️ My Lawyer Friend
         </div>
+
         <div style="color:#98a2b3;margin-top:5px;">
-        Legal information made simple
+            Legal information made simple
         </div>
         """,
         unsafe_allow_html=True,
@@ -169,190 +156,289 @@ with st.sidebar:
 
     st.markdown("### Navigation")
 
-    st.markdown("🏠 **Home**")
-st.markdown("📄 Explain a Judgment")
-st.markdown("🔍 Search Cases")
-st.markdown("⚖️ Know Your Rights")
-st.markdown("🧠 Ask Legal Questions")
-st.markdown("📚 My History")
+    page = st.radio(
+        "Go to",
+        [
+            "🏠 Home",
+            "📄 Explain a Judgment",
+            "🔍 Search Cases",
+            "⚖️ Know Your Rights",
+            "🧠 Legal Q&A",
+            "📚 History",
+        ],
+        label_visibility="collapsed",
+    )
 
     st.divider()
 
-    st.caption("🇮🇳 Built for users in India")
+    st.caption("🇮🇳 Designed for users in India")
 
-# ---------------------------------------------------------
-# HERO
-# ---------------------------------------------------------
+# ============================================================
+# HOME
+# ============================================================
 
-st.markdown(
-    """
-    <div class="hero">
+if page == "🏠 Home":
 
-        <div class="hero-badge">
-            🇮🇳 Indian Legal Information Platform
-        </div>
-
-        <div class="hero-title">
-            Your legal questions,<br>
-            explained simply.
-        </div>
-
-        <div class="hero-text">
-            My Lawyer Friend helps you understand court judgments,
-            legal documents and everyday legal concepts using
-            clear and simple language.
-        </div>
-
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# ---------------------------------------------------------
-# QUICK ACTIONS
-# ---------------------------------------------------------
-
-st.markdown(
-    '<div class="section-title">What do you need help with?</div>',
-    unsafe_allow_html=True,
-)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
     st.markdown(
         """
-        <div class="card">
-            <div class="icon">📄</div>
-            <div class="card-title">
-                Explain a Judgment
+        <div class="hero">
+
+            <div class="hero-badge">
+                🇮🇳 Indian Legal Information Platform
             </div>
-            <div class="card-text">
-                Upload a court judgment and understand
-                the important points in simpler language.
+
+            <div class="hero-title">
+                Your legal questions,<br>
+                explained simply.
             </div>
+
+            <div class="hero-text">
+                My Lawyer Friend helps you understand court
+                judgments, legal documents and everyday legal
+                concepts using clear and simple language.
+            </div>
+
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-with col2:
+    st.markdown(
+        '<div class="section-title">What do you need help with?</div>',
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">📄</div>
+                <div class="card-title">
+                    Explain a Judgment
+                </div>
+                <div class="card-text">
+                    Upload a court judgment and understand
+                    the important points in simpler language.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col2:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">🔍</div>
+                <div class="card-title">
+                    Search Cases
+                </div>
+                <div class="card-text">
+                    Find useful information about Indian
+                    court cases and judgments.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col3:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">🧠</div>
+                <div class="card-title">
+                    Ask a Legal Question
+                </div>
+                <div class="card-text">
+                    Ask questions about legal concepts
+                    and receive easy-to-understand explanations.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<div class="section-title">Built for everyone</div>',
+        unsafe_allow_html=True,
+    )
+
+    col4, col5, col6 = st.columns(3)
+
+    with col4:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">👨‍👩‍👧</div>
+                <div class="card-title">
+                    Common People
+                </div>
+                <div class="card-text">
+                    Understand legal documents without
+                    needing complicated legal terminology.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col5:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">🎓</div>
+                <div class="card-title">
+                    Students
+                </div>
+                <div class="card-text">
+                    Learn how real court decisions work
+                    through simplified explanations.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col6:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="icon">💼</div>
+                <div class="card-title">
+                    Professionals
+                </div>
+                <div class="card-text">
+                    Quickly identify important information
+                    inside lengthy legal documents.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     st.markdown(
         """
-        <div class="card">
-            <div class="icon">🔍</div>
-            <div class="card-title">
-                Search Cases
-            </div>
-            <div class="card-text">
-                Find useful information about Indian
-                court cases and judgments.
-            </div>
+        <div class="disclaimer">
+            <strong>⚠️ Important</strong><br><br>
+            My Lawyer Friend provides general legal information
+            for educational purposes. It does not provide legal
+            representation or replace advice from a qualified lawyer.
+            Always verify important information using the original
+            legal source and seek professional advice when necessary.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-with col3:
-    st.markdown(
-        """
-        <div class="card">
-            <div class="icon">🧠</div>
-            <div class="card-title">
-                Ask a Legal Question
-            </div>
-            <div class="card-text">
-                Ask questions about legal concepts
-                and receive easy-to-understand explanations.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+# ============================================================
+# EXPLAIN JUDGMENT
+# ============================================================
+
+elif page == "📄 Explain a Judgment":
+
+    st.title("📄 Explain a Judgment")
+
+    st.write(
+        "Upload an Indian court judgment PDF and we will "
+        "build the explanation system here."
     )
 
-# ---------------------------------------------------------
-# SECOND SECTION
-# ---------------------------------------------------------
-
-st.markdown(
-    '<div class="section-title">Built for everyone</div>',
-    unsafe_allow_html=True,
-)
-
-col4, col5, col6 = st.columns(3)
-
-with col4:
-    st.markdown(
-        """
-        <div class="card">
-            <div class="icon">👨‍👩‍👧</div>
-            <div class="card-title">
-                Common People
-            </div>
-            <div class="card-text">
-                Understand legal documents without
-                needing to know complicated legal terminology.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    uploaded_file = st.file_uploader(
+        "Upload judgment PDF",
+        type=["pdf"],
     )
 
-with col5:
-    st.markdown(
-        """
-        <div class="card">
-            <div class="icon">🎓</div>
-            <div class="card-title">
-                Students
-            </div>
-            <div class="card-text">
-                Learn how real court decisions work
-                through simplified explanations.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    if uploaded_file:
+        st.success(
+            f"Successfully uploaded: {uploaded_file.name}"
+        )
+
+        st.info(
+            "PDF processing will be added in the next step."
+        )
+
+# ============================================================
+# SEARCH CASES
+# ============================================================
+
+elif page == "🔍 Search Cases":
+
+    st.title("🔍 Search Cases")
+
+    st.info(
+        "The Indian case-search system will be added here."
     )
 
-with col6:
-    st.markdown(
-        """
-        <div class="card">
-            <div class="icon">💼</div>
-            <div class="card-title">
-                Professionals
-            </div>
-            <div class="card-text">
-                Quickly identify important information
-                inside lengthy legal documents.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    search = st.text_input(
+        "Search by case name, topic or keyword"
     )
 
-# ---------------------------------------------------------
-# DISCLAIMER
-# ---------------------------------------------------------
+    if search:
+        st.write(f"Searching for: **{search}**")
 
-st.markdown(
-    """
-    <div class="disclaimer">
-        <strong>⚠️ Important</strong><br><br>
-        My Lawyer Friend provides general legal information
-        for educational purposes. It does not provide legal
-        representation or replace advice from a qualified lawyer.
-        Always verify important information using the original
-        legal source and seek professional advice when necessary.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# ============================================================
+# KNOW YOUR RIGHTS
+# ============================================================
 
-# ---------------------------------------------------------
+elif page == "⚖️ Know Your Rights":
+
+    st.title("⚖️ Know Your Rights")
+
+    st.write(
+        "Simple explanations of common legal rights "
+        "will be available here."
+    )
+
+    st.info(
+        "Rights library coming in the next development stage."
+    )
+
+# ============================================================
+# LEGAL Q&A
+# ============================================================
+
+elif page == "🧠 Legal Q&A":
+
+    st.title("🧠 Legal Q&A")
+
+    question = st.text_area(
+        "What would you like to understand?"
+    )
+
+    if st.button("Get Explanation"):
+
+        if not question.strip():
+
+            st.warning(
+                "Please enter a question first."
+            )
+
+        else:
+
+            st.info(
+                "AI legal explanation will be connected "
+                "in the next step."
+            )
+
+# ============================================================
+# HISTORY
+# ============================================================
+
+elif page == "📚 History":
+
+    st.title("📚 My History")
+
+    st.info(
+        "Your previous explanations will appear here "
+        "after the history system is implemented."
+    )
+
+# ============================================================
 # FOOTER
-# ---------------------------------------------------------
+# ============================================================
 
 st.markdown(
     """
