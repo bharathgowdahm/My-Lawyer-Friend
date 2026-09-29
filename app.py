@@ -1047,4 +1047,156 @@ elif st.session_state.page == "Search Cases":
 
             if error:
                 st.error(error)
-                st.info("If the API is unavailable, you can search
+                st.info("If the API is unavailable, you can search directly at indiankanoon.org")
+                st.link_button("Search on Indian Kanoon →", f"https://indiankanoon.org/search/?formInput={search_term}")
+            else:
+                docs = data.get("docs", [])
+                st.success(f"Found {len(docs)} results")
+                add_history("Case Search", search_term)
+                render_case_cards(docs)
+
+    # Official links fallback
+    st.divider()
+    st.markdown('<div class="section-title">🇮🇳 Official legal resources</div>', unsafe_allow_html=True)
+
+    resources = [
+        ("⚖️", "Supreme Court of India", "https://www.sci.gov.in/", "bg-indigo"),
+        ("🏛️", "eCourts Services", "https://ecourts.gov.in/", "bg-emerald"),
+        ("📚", "India Code", "https://www.indiacode.nic.in/", "bg-amber"),
+        ("📜", "Indian Kanoon", "https://indiankanoon.org/", "bg-slate"),
+    ]
+
+    cols = st.columns(4)
+    for i, (icon, name, url, theme) in enumerate(resources):
+        with cols[i % 4]:
+            image_card(icon, name, "Official government resource", theme=theme, tag="LINK")
+            st.link_button("Visit →", url, use_container_width=True)
+
+
+# ============================================================
+# KNOW YOUR RIGHTS
+# ============================================================
+
+elif st.session_state.page == "Know Your Rights":
+
+    st.title("⚖️ Know Your Rights")
+    st.write("Explore general legal-information topics.")
+
+    rights = [
+        ("🚔", "Police & FIR", "bg-slate",
+         "General information about complaints, FIRs and police procedures."),
+        ("🛍️", "Consumer Rights", "bg-orange",
+         "Consumer complaints, refunds, and consumer protection."),
+        ("💻", "Cyber Crime", "bg-violet",
+         "Online fraud, cybercrime and how to report incidents."),
+        ("🏠", "Property", "bg-sky",
+         "Property-related legal concepts and disputes."),
+        ("💼", "Employment", "bg-teal",
+         "Workplace rights, salaries, and employment-related concepts."),
+        ("📄", "RTI", "bg-cyan",
+         "Right to Information — filing, appeals and transparency."),
+        ("👨‍👩‍👧", "Family Law", "bg-rose",
+         "Common family-law concepts."),
+        ("🛡️", "Fundamental Rights", "bg-indigo",
+         "Fundamental rights under the Indian Constitution."),
+    ]
+
+    cols = st.columns(3)
+    for i, (icon, title, theme, desc) in enumerate(rights):
+        with cols[i % 3]:
+            image_card(icon, title, desc, theme=theme, tag="RIGHTS")
+
+
+# ============================================================
+# HISTORY
+# ============================================================
+
+elif st.session_state.page == "History":
+
+    st.title("📚 History")
+    st.write("Your recent activity during this session.")
+
+    if not st.session_state.history:
+        st.info("No activity yet.")
+    else:
+        theme_map = {
+            "Judgment Analysis": ("📄", "bg-indigo"),
+            "Document Q&A": ("💬", "bg-amber"),
+            "Legal Q&A": ("🧠", "bg-violet"),
+            "Case Search": ("🔍", "bg-emerald"),
+        }
+
+        for item in reversed(st.session_state.history):
+            icon, theme = theme_map.get(item["category"], ("📌", "bg-slate"))
+            image_card(
+                icon,
+                item["category"],
+                f'{item["text"]}<br><br><span style="color:#98a2b3;font-size:12px;">{item["time"]}</span>',
+                theme=theme,
+                tag="SESSION",
+            )
+
+        st.divider()
+        if st.button("🗑️ Clear History", use_container_width=True):
+            st.session_state.history = []
+            st.rerun()
+
+
+# ============================================================
+# ABOUT
+# ============================================================
+
+elif st.session_state.page == "About":
+
+    st.title("⚖️ About My Lawyer Friend")
+
+    image_card(
+        "🇮🇳",
+        "What is My Lawyer Friend?",
+        "A student-built Indian legal-information platform designed to make "
+        "legal concepts, judgments and legal terminology easier to understand.",
+        theme="bg-indigo",
+        tag="MISSION",
+    )
+
+    st.markdown('<div class="section-title">🚀 Roadmap</div>', unsafe_allow_html=True)
+
+    roadmap = [
+        ("v1.0", "Premium UI and navigation", "bg-slate"),
+        ("v1.2", "AI document analysis", "bg-indigo"),
+        ("v1.4", "Image-card system + filters", "bg-emerald"),
+        ("v2.0", "Indian Kanoon + RAG integration", "bg-amber"),
+        ("v2.1", "Voice input + regional languages", "bg-violet"),
+        ("v2.2", "Legal notice generator", "bg-rose"),
+        ("v3.0", "Advanced legal research assistant", "bg-fuchsia"),
+    ]
+
+    cols = st.columns(4)
+    for i, (ver, feat, theme) in enumerate(roadmap):
+        with cols[i % 4]:
+            image_card("🚀", ver, feat, theme=theme, tag="ROADMAP")
+
+    st.divider()
+    st.code(
+        f"My Lawyer Friend\n"
+        f"Indian Legal Information Platform\n"
+        f"Version {APP_VERSION}\n"
+        f"Built as a CSE student portfolio project."
+    )
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown(
+    """
+    <div class="footer">
+        ⚖️ <strong>My Lawyer Friend</strong><br>
+        Legal information made simple · 🇮🇳 India<br><br>
+        Built as an open-source CSE project.<br>
+        General information only · Not legal advice
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
