@@ -169,16 +169,12 @@ with st.sidebar:
 
     st.markdown("### Navigation")
 
-    st.page_link(
-        "app.py",
-        label="🏠 Home",
-    )
-
-    st.markdown("📄 Explain a Judgment")
-    st.markdown("🔍 Search Cases")
-    st.markdown("⚖️ Know Your Rights")
-    st.markdown("🧠 Ask Legal Questions")
-    st.markdown("📚 My History")
+    st.markdown("🏠 **Home**")
+st.markdown("📄 Explain a Judgment")
+st.markdown("🔍 Search Cases")
+st.markdown("⚖️ Know Your Rights")
+st.markdown("🧠 Ask Legal Questions")
+st.markdown("📚 My History")
 
     st.divider()
 
