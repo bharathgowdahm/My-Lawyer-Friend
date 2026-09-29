@@ -1,5 +1,7 @@
 import streamlit as st
 from datetime import datetime
+from pypdf import PdfReader
+from google import genai
 
 # ============================================================
 # MY LAWYER FRIEND — V1.1
