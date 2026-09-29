@@ -596,9 +596,8 @@ def extract_pdf_text(uploaded_file):
             break
 st.markdown("""
 <div class="stat-num">AI</div>
-""", unsafe_allow_html=True)
-                   
 <div class="stat-label">Powered by Gemini</div>
+""", unsafe_allow_html=True)
                 </div>
                 <div>
                     <div class="stat-num">Free</div>
