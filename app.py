@@ -1,14 +1,15 @@
 import streamlit as st
 from datetime import datetime
+import html
 
-# ---------- PDF ----------
+# Optional PDF support
 try:
     from pypdf import PdfReader
     PYPDF_AVAILABLE = True
 except ImportError:
     PYPDF_AVAILABLE = False
 
-# ---------- Gemini ----------
+# Optional Gemini support
 try:
     from google import genai
     GENAI_AVAILABLE = True
@@ -17,34 +18,158 @@ except ImportError:
 
 
 # ============================================================
-# MY LAWYER FRIEND — V1.4
-# Premium Indian Legal Information Platform
+# CONFIG
 # ============================================================
 
+APP_NAME = "My Lawyer Friend"
+APP_VERSION = "2.0"
+GEMINI_MODEL = "gemini-2.5-flash"
+
 st.set_page_config(
-    page_title="My Lawyer Friend",
+    page_title=APP_NAME,
     page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-APP_NAME = "My Lawyer Friend"
-APP_VERSION = "1.4"
-GEMINI_MODEL = "gemini-2.5-flash"
 
-PAGES = [
-    "Home",
-    "Explain a Judgment",
-    "Legal Q&A",
-    "Search Cases",
-    "Know Your Rights",
-    "History",
-    "About",
-]
+# ============================================================
+# CSS
+# ============================================================
+
+st.markdown(
+    """
+<style>
+:root {
+    --primary: #16324f;
+    --secondary: #0f766e;
+    --accent: #d4a017;
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --text: #172033;
+    --muted: #64748b;
+}
+
+.stApp {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.block-container {
+    max-width: 1200px;
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+}
+
+.hero {
+    background: linear-gradient(135deg, #102a43 0%, #16324f 55%, #0f766e 100%);
+    padding: 42px;
+    border-radius: 24px;
+    color: white;
+    margin-bottom: 28px;
+    box-shadow: 0 14px 35px rgba(15, 23, 42, 0.14);
+}
+
+.hero h1 {
+    font-size: 44px;
+    margin: 0 0 10px 0;
+    font-weight: 800;
+}
+
+.hero p {
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 850px;
+    color: #e2e8f0;
+}
+
+.badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    padding: 7px 13px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+}
+
+.card h3 {
+    margin-top: 0;
+    color: #16324f;
+}
+
+.small-muted {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.stat {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 22px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+}
+
+.stat-num {
+    font-size: 30px;
+    font-weight: 800;
+    color: #16324f;
+}
+
+.stat-label {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.disclaimer {
+    background: #fff7ed;
+    border-left: 5px solid #d4a017;
+    padding: 16px 18px;
+    border-radius: 10px;
+    color: #7c4a03;
+    margin-top: 20px;
+}
+
+.footer {
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+    padding: 35px 0 10px 0;
+}
+
+.stButton > button {
+    border-radius: 10px;
+    font-weight: 650;
+}
+
+@media (max-width: 700px) {
+    .hero {
+        padding: 28px 22px;
+    }
+    .hero h1 {
+        font-size: 32px;
+    }
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
-# SAFE SECRETS
+# HELPERS
 # ============================================================
 
 def get_secret(key, default=""):
@@ -54,7 +179,8 @@ def get_secret(key, default=""):
         return default
 
 
-GEMINI_API_KEY = get_secret("GEMINI_API_KEY", "")
+GEMINI_API_KEY = get_secret("GEMINI_API_KEY", "").strip()
+
 client = None
 if GEMINI_API_KEY and GENAI_AVAILABLE:
     try:
@@ -63,1125 +189,648 @@ if GEMINI_API_KEY and GENAI_AVAILABLE:
         client = None
 
 
+def require_ai():
+    if not GENAI_AVAILABLE:
+        st.error("Google Gemini package is not installed.")
+        st.code("google-genai")
+        return False
+
+    if not GEMINI_API_KEY:
+        st.error("Gemini API key is not configured.")
+        st.info("Add GEMINI_API_KEY in Streamlit Cloud → Settings → Secrets.")
+        return False
+
+    if client is None:
+        st.error("Gemini client could not be initialized.")
+        return False
+
+    return True
+
+
+def generate_ai(prompt):
+    """Generate an answer from Gemini and show the real error if it fails."""
+    if not require_ai():
+        return None
+
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+        )
+
+        text = getattr(response, "text", None)
+
+        if not text:
+            st.error("Gemini returned an empty response.")
+            return None
+
+        return text.strip()
+
+    except Exception as exc:
+        st.error("Gemini API Error")
+        st.code(str(exc))
+        return None
+
+
+def add_history(category, title, content):
+    if "history" not in st.session_state:
+        st.session_state.history = []
+
+    st.session_state.history.insert(
+        0,
+        {
+            "category": category,
+            "title": title,
+            "content": content,
+            "time": datetime.now().strftime("%d %b %Y, %I:%M %p"),
+        },
+    )
+
+    st.session_state.history = st.session_state.history[:30]
+
+
+def extract_pdf_text(uploaded_file):
+    if not PYPDF_AVAILABLE:
+        st.error("PDF support is not installed. Add pypdf to requirements.txt.")
+        return ""
+
+    try:
+        reader = PdfReader(uploaded_file)
+        pages = reader.pages[:200]
+
+        chunks = []
+        for page in pages:
+            try:
+                chunks.append(page.extract_text() or "")
+            except Exception:
+                continue
+
+        text = "\n".join(chunks).strip()
+
+        if not text:
+            st.warning(
+                "No selectable text was found. This may be a scanned/image-only PDF."
+            )
+            return ""
+
+        return text[:60000]
+
+    except Exception as exc:
+        st.error("Could not read the PDF.")
+        st.code(str(exc))
+        return ""
+
+
+def safe_text(value):
+    return html.escape(str(value))
+
+
+def show_disclaimer():
+    st.markdown(
+        """
+<div class="disclaimer">
+<strong>Important:</strong> My Lawyer Friend provides general legal information
+and educational explanations. It is not a substitute for advice from a qualified
+lawyer or official legal authority. For urgent or case-specific matters, consult
+a lawyer and verify information with official sources.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 # ============================================================
 # SESSION STATE
 # ============================================================
 
 if "page" not in st.session_state:
     st.session_state.page = "Home"
+
 if "history" not in st.session_state:
     st.session_state.history = []
-if st.session_state.page not in PAGES:
-    st.session_state.page = "Home"
 
 
 # ============================================================
-# PREMIUM CSS  (image-cards, filters, polish)
+# SIDEBAR
 # ============================================================
 
-st.markdown(
-    """
-<style>
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.stApp {
-    background:
-        radial-gradient(circle at 5% 0%, rgba(99,102,241,.08), transparent 28%),
-        radial-gradient(circle at 100% 100%, rgba(245,158,11,.06), transparent 30%),
-        #f6f7fb;
-}
-
-.block-container {
-    max-width: 1280px;
-    padding-top: 1.5rem;
-    padding-bottom: 4rem;
-}
-
-
-/* ============================================================
-   SIDEBAR
-   ============================================================ */
-
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #08111f 0%, #0b1220 100%);
-    border-right: 1px solid rgba(255,255,255,.05);
-}
-
-section[data-testid="stSidebar"] * {
-    color: #e5e7eb;
-}
-
-section[data-testid="stSidebar"] .stRadio label {
-    color: #e5e7eb !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    padding: 7px 10px;
-    border-radius: 10px;
-    transition: background .2s;
-}
-
-section[data-testid="stSidebar"] .stRadio label:hover {
-    background: rgba(255,255,255,.07);
-}
-
-section[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,.10) !important;
-}
-
-
-/* ============================================================
-   HERO
-   ============================================================ */
-
-.hero {
-    background:
-        radial-gradient(circle at 90% 20%, rgba(99,102,241,.35), transparent 30%),
-        linear-gradient(135deg, #08111f 0%, #12223e 55%, #214b78 100%);
-    border-radius: 28px;
-    padding: 52px 48px;
-    color: white;
-    box-shadow: 0 25px 70px rgba(15,23,42,.22);
-    margin-bottom: 32px;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero::after {
-    content: "";
-    position: absolute;
-    top: -40%; right: -15%;
-    width: 480px; height: 480px;
-    background: radial-gradient(circle, rgba(245,158,11,.18), transparent 65%);
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.hero-badge {
-    display: inline-block;
-    padding: 8px 15px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.09);
-    border: 1px solid rgba(255,255,255,.15);
-    color: #e5e7eb;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 18px;
-    position: relative;
-    z-index: 2;
-}
-
-.hero-title {
-    font-size: 52px;
-    line-height: 1.04;
-    font-weight: 900;
-    letter-spacing: -2.2px;
-    margin: 0;
-    color: #fff !important;
-    position: relative;
-    z-index: 2;
-}
-
-.hero-highlight {
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.hero-description {
-    max-width: 720px;
-    margin-top: 18px;
-    color: #dbe4f0 !important;
-    font-size: 17px;
-    line-height: 1.75;
-    position: relative;
-    z-index: 2;
-}
-
-
-/* ============================================================
-   SECTION TITLES
-   ============================================================ */
-
-.section-title {
-    color: #101828 !important;
-    font-size: 27px;
-    font-weight: 800;
-    margin-top: 38px;
-    margin-bottom: 6px;
-    letter-spacing: -0.5px;
-}
-
-.section-subtitle {
-    color: #667085 !important;
-    font-size: 15px;
-    margin-bottom: 20px;
-}
-
-
-/* ============================================================
-   ★★★★★  IMAGE-CARDS  ★★★★★
-   ============================================================ */
-
-.img-card {
-    background: #ffffff;
-    border: 1px solid #e4e7ec;
-    border-radius: 22px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    transition: all .28s cubic-bezier(.4,0,.2,1);
-    box-shadow: 0 4px 16px rgba(16,24,40,.05);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.img-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 22px 45px rgba(16,24,40,.13);
-    border-color: #c7d2fe;
-}
-
-/* Illustrated banner */
-.img-card-banner {
-    height: 128px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.img-card-banner::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.25), transparent 55%);
-    pointer-events: none;
-}
-
-.img-card-icon {
-    font-size: 52px;
-    filter: drop-shadow(0 4px 10px rgba(0,0,0,.20));
-    z-index: 1;
-}
-
-/* Gradient themes */
-.bg-indigo   { background: linear-gradient(135deg, #6366f1, #4338ca); }
-.bg-amber    { background: linear-gradient(135deg, #f59e0b, #b45309); }
-.bg-emerald  { background: linear-gradient(135deg, #10b981, #047857); }
-.bg-rose     { background: linear-gradient(135deg, #f43f5e, #be123c); }
-.bg-sky      { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
-.bg-violet   { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-.bg-orange   { background: linear-gradient(135deg, #fb923c, #c2410c); }
-.bg-teal     { background: linear-gradient(135deg, #14b8a6, #0f766e); }
-.bg-slate    { background: linear-gradient(135deg, #475569, #1e293b); }
-.bg-fuchsia  { background: linear-gradient(135deg, #d946ef, #a21caf); }
-.bg-lime     { background: linear-gradient(135deg, #84cc16, #4d7c0f); }
-.bg-cyan     { background: linear-gradient(135deg, #06b6d4, #0e7490); }
-
-.img-card-body {
-    padding: 20px 22px 22px 22px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.img-card-tag {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #4338ca;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    width: fit-content;
-}
-
-.img-card-title {
-    color: #101828 !important;
-    font-size: 18px;
-    font-weight: 800;
-    margin: 0 0 8px 0;
-    letter-spacing: -0.3px;
-}
-
-.img-card-text {
-    color: #475467 !important;
-    font-size: 13.5px;
-    line-height: 1.6;
-    margin: 0;
-    flex: 1;
-}
-
-
-/* ============================================================
-   FILTER PILLS  (client-side look)
-   ============================================================ */
-
-.filter-pill {
-    display: inline-block;
-    padding: 7px 15px;
-    border-radius: 999px;
-    background: #ffffff;
-    border: 1.5px solid #e4e7ec;
-    color: #344054;
-    font-size: 13px;
-    font-weight: 600;
-    margin-right: 8px;
-    margin-bottom: 8px;
-    transition: all .2s;
-    cursor: pointer;
-}
-
-.filter-pill:hover {
-    border-color: #6366f1;
-    color: #4338ca;
-    background: #eef2ff;
-}
-
-.filter-pill-active {
-    background: linear-gradient(135deg, #101828, #263f63);
-    color: #ffffff !important;
-    border-color: #101828;
-}
-
-
-/* ============================================================
-   STAT CHIPS (hero metrics)
-   ============================================================ */
-
-.stat-strip {
-    display: flex;
-    gap: 34px;
-    margin-top: 26px;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 2;
-}
-
-.stat-num {
-    font-size: 24px;
-    font-weight: 900;
-    color: #fbbf24 !important;
-    letter-spacing: -0.5px;
-}
-
-.stat-label {
-    font-size: 12.5px;
-    color: #94a3b8 !important;
-    margin-top: 2px;
-}
-
-
-/* ============================================================
-   BUTTONS
-   ============================================================ */
-
-.stButton > button {
-    width: 100%;
-    min-height: 44px;
-    border-radius: 12px;
-    border: 1px solid #d0d5dd;
-    background: #ffffff;
-    color: #101828 !important;
-    font-weight: 700;
-    transition: all .2s ease;
-}
-
-.stButton > button:hover {
-    border-color: #6366f1;
-    color: #4338ca !important;
-    transform: translateY(-1px);
-}
-
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #101828, #263f63);
-    color: #fff !important;
-    border: none;
-    box-shadow: 0 7px 20px rgba(16,24,40,.18);
-}
-
-.stButton > button[kind="primary"]:hover {
-    color: #fff !important;
-    background: linear-gradient(135deg, #17243a, #31527f);
-    transform: translateY(-2px);
-}
-
-
-/* ============================================================
-   INPUTS / SELECTS / UPLOADER
-   ============================================================ */
-
-.stTextInput input,
-.stTextArea textarea {
-    background: #ffffff !important;
-    color: #101828 !important;
-    border-radius: 12px !important;
-    border: 1px solid #d0d5dd !important;
-}
-
-.stTextInput input::placeholder,
-.stTextArea textarea::placeholder {
-    color: #98a2b3 !important;
-}
-
-.stTextInput input:focus,
-.stTextArea textarea:focus {
-    border-color: #6366f1 !important;
-    box-shadow: 0 0 0 3px rgba(99,102,241,.12) !important;
-}
-
-div[data-baseweb="select"] > div {
-    background: #fff !important;
-    border-radius: 12px !important;
-    color: #101828 !important;
-}
-
-section[data-testid="stFileUploaderDropzone"] {
-    background: #ffffff;
-    border: 2px dashed #c7d2fe;
-    border-radius: 16px;
-}
-
-section[data-testid="stFileUploaderDropzone"] * {
-    color: #475467 !important;
-}
-
-
-/* ============================================================
-   ALERT BOXES
-   ============================================================ */
-
-.warning-box {
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-left: 5px solid #f59e0b;
-    border-radius: 14px;
-    padding: 20px 24px;
-    color: #78350f !important;
-    line-height: 1.65;
-    margin-top: 20px;
-}
-
-.info-box {
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
-    border-left: 5px solid #6366f1;
-    border-radius: 14px;
-    padding: 20px 24px;
-    color: #312e81 !important;
-    line-height: 1.65;
-}
-
-
-/* ============================================================
-   FOOTER
-   ============================================================ */
-
-.footer {
-    text-align: center;
-    color: #667085 !important;
-    padding-top: 40px;
-    margin-top: 60px;
-    border-top: 1px solid #e4e7ec;
-    line-height: 1.8;
-    font-size: 13px;
-}
-
-
-/* ============================================================
-   MOBILE
-   ============================================================ */
-
-@media (max-width: 700px) {
-    .block-container { padding: 1rem .85rem 3rem .85rem; }
-    .hero { padding: 32px 22px; border-radius: 22px; }
-    .hero-title { font-size: 34px; letter-spacing: -1px; }
-    .hero-description { font-size: 14px; line-height: 1.65; }
-    .section-title { font-size: 22px; margin-top: 28px; }
-    .img-card-banner { height: 100px; }
-    .img-card-icon { font-size: 42px; }
-    .stat-strip { gap: 22px; }
-    .stat-num { font-size: 20px; }
-}
-
-</style>
+with st.sidebar:
+    st.markdown("## ⚖️ My Lawyer Friend")
+    st.caption(f"Version {APP_VERSION}")
+
+    pages = [
+        "Home",
+        "Explain a Judgment",
+        "Legal Q&A",
+        "Search Cases",
+        "Know Your Rights",
+        "History",
+        "About",
+    ]
+
+    selected_page = st.radio(
+        "Navigation",
+        pages,
+        index=pages.index(st.session_state.page),
+    )
+
+    st.session_state.page = selected_page
+
+    st.divider()
+
+    st.markdown("### Quick status")
+
+    if client:
+        st.success("AI connected")
+    elif not GENAI_AVAILABLE:
+        st.warning("Gemini package missing")
+    else:
+        st.warning("AI key not configured")
+
+    if PYPDF_AVAILABLE:
+        st.success("PDF support ready")
+    else:
+        st.warning("PDF package missing")
+
+
+page = st.session_state.page
+
+
+# ============================================================
+# HOME
+# ============================================================
+
+if page == "Home":
+    st.markdown(
+        """
+<div class="hero">
+    <div class="badge">🇮🇳 Indian Legal Information Platform</div>
+    <h1>My Lawyer Friend ⚖️</h1>
+    <p>
+        Understand Indian legal concepts, judgments and everyday rights in
+        simple language — with AI assistance and links to useful legal resources.
+    </p>
+</div>
 """,
-    unsafe_allow_html=True,
-)
-
-
-# ============================================================
-# REUSABLE: IMAGE-CARD RENDERER
-# ============================================================
-
-def image_card(icon, title, text, theme="bg-indigo", tag=None):
-    """Render a premium image card."""
-    tag_html = f'<div class="img-card-tag">{tag}</div>' if tag else ""
-    st.markdown(
-        f"""
-        <div class="img-card">
-            <div class="img-card-banner {theme}">
-                <div class="img-card-icon">{icon}</div>
-            </div>
-            <div class="img-card-body">
-                {tag_html}
-                <div class="img-card-title">{title}</div>
-                <div class="img-card-text">{text}</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def add_history(category, text):
-    st.session_state.history.append(
-        {
-            "category": category,
-            "text": text,
-            "time": datetime.now().strftime("%d %b %Y · %I:%M %p"),
-        }
-    )
-
-
-def go_to(page):
-    if page in PAGES:
-        st.session_state.page = page
-
-
-def require_ai():
-    if not GENAI_AVAILABLE:
-        st.error("Google Gemini package is not installed.")
-        st.code("pip install google-genai")
-        return False
-    if not GEMINI_API_KEY:
-        st.error("Gemini API key is not configured.")
-        st.info("Add `GEMINI_API_KEY` in Streamlit Cloud → Settings → Secrets.")
-        return False
-    if client is None:
-        st.error("Gemini client could not be initialized.")
-        return False
-    return True
-
-
-def generate_ai(prompt):
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-    )
-    return getattr(response, "text", None) or "No response was returned."
-
-
-def extract_pdf_text(uploaded_file):
-    if not PYPDF_AVAILABLE:
-        raise ImportError("pypdf is not installed. Add `pypdf` to requirements.txt.")
-    reader = PdfReader(uploaded_file)
-    parts = []
-    for i, page in enumerate(reader.pages):
-        if i >= 200:
-            break
-st.markdown("""
-<div class="stat-num">AI</div>
-<div class="stat-label">Powered by Gemini</div>
-""", unsafe_allow_html=True)
-                </div>
-                <div>
-                    <div class="stat-num">Free</div>
-                    <div class="stat-label">For every Indian citizen</div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ---------- QUICK ACTIONS ----------
-    st.markdown('<div class="section-title">🚀 Quick actions</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-subtitle">Start with one of the tools below.</div>',
-        unsafe_allow_html=True,
-    )
-
-    q1, q2, q3 = st.columns(3)
-    with q1:
-        if st.button("📄 Explain Judgment", key="quick_judgment", type="primary"):
-            go_to("Explain a Judgment")
-            st.rerun()
-    with q2:
-        if st.button("🧠 Ask Legal Question", key="quick_qa", type="primary"):
-            go_to("Legal Q&A")
-            st.rerun()
-    with q3:
-        if st.button("🔍 Search Cases", key="quick_cases", type="primary"):
-            go_to("Search Cases")
-            st.rerun()
-
-    # ---------- FEATURE CARDS (IMAGE CARDS) ----------
-    st.markdown('<div class="section-title">✨ What can you do here?</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-subtitle">Simple tools for common legal-information needs.</div>',
         unsafe_allow_html=True,
     )
 
     c1, c2, c3 = st.columns(3)
+
     with c1:
-        image_card(
-            "📄",
-            "Explain a Judgment",
-            "Upload a court judgment PDF and get a structured, plain-language explanation with key takeaways.",
-            theme="bg-indigo",
-            tag="AI POWERED",
+        st.markdown(
+            """
+<div class="stat">
+<div class="stat-num">AI</div>
+<div class="stat-label">Legal explanations</div>
+</div>
+""",
+            unsafe_allow_html=True,
         )
-        if st.button("Open tool →", key="feature_judgment"):
-            go_to("Explain a Judgment")
-            st.rerun()
+
     with c2:
-        image_card(
-            "🧠",
-            "Legal Q&A",
-            "Ask general legal-information questions and receive clear, jargon-free explanations.",
-            theme="bg-amber",
-            tag="INSTANT",
+        st.markdown(
+            """
+<div class="stat">
+<div class="stat-num">PDF</div>
+<div class="stat-label">Judgment analysis</div>
+</div>
+""",
+            unsafe_allow_html=True,
         )
-        if st.button("Ask a question →", key="feature_qa"):
-            go_to("Legal Q&A")
-            st.rerun()
+
     with c3:
-        image_card(
-            "🔍",
-            "Search Cases",
-            "Search Indian legal resources by case name, topic or court with curated official links.",
-            theme="bg-emerald",
-            tag="RESEARCH",
+        st.markdown(
+            """
+<div class="stat">
+<div class="stat-num">IN</div>
+<div class="stat-label">India-focused resources</div>
+</div>
+""",
+            unsafe_allow_html=True,
         )
-        if st.button("Search cases →", key="feature_cases"):
-            go_to("Search Cases")
+
+    st.markdown("## What can you do?")
+
+    a, b = st.columns(2)
+
+    with a:
+        st.markdown(
+            """
+<div class="card">
+<h3>📄 Explain a Judgment</h3>
+<p>Upload a text-based PDF judgment and get a structured plain-language explanation.</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Open Judgment Analyzer", use_container_width=True):
+            st.session_state.page = "Explain a Judgment"
             st.rerun()
 
-    # ---------- POPULAR TOPICS (IMAGE CARDS + FILTER) ----------
-    st.markdown('<div class="section-title">🔥 Popular topics</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-subtitle">Browse common legal topics — each card is a starting point.</div>',
-        unsafe_allow_html=True,
-    )
+    with b:
+        st.markdown(
+            """
+<div class="card">
+<h3>🧠 Legal Q&A</h3>
+<p>Ask general questions about Indian law and receive an educational explanation.</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
-    # filter row
-    topic_filter = st.radio(
-        "Filter topics",
-        ["All", "Everyday", "Business", "Family", "Constitutional"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key="topic_filter",
-    )
+        if st.button("Ask a Legal Question", use_container_width=True):
+            st.session_state.page = "Legal Q&A"
+            st.rerun()
 
-    ALL_TOPICS = [
-        ("🛍️", "Consumer Rights", "Everyday", "bg-orange",
-         "Complaints, refunds, defective products and consumer protection."),
-        ("🏠", "Property", "Everyday", "bg-sky",
-         "Ownership, rent, tenancy, and property-related legal concepts."),
-        ("🚔", "FIR & Police", "Everyday", "bg-slate",
-         "How FIRs work, police procedures and complaint filing."),
-        ("💻", "Cyber Crime", "Everyday", "bg-violet",
-         "Online fraud, identity theft, and how to report cybercrime."),
-        ("👨‍👩‍👧", "Family Law", "Family", "bg-rose",
-         "Marriage, divorce, maintenance, custody and succession basics."),
-        ("💼", "Employment", "Business", "bg-teal",
-         "Workplace rights, contracts, salary disputes and termination."),
-        ("📄", "RTI", "Constitutional", "bg-cyan",
-         "Right to Information — filing, appeals and transparency."),
-        ("⚖️", "Fundamental Rights", "Constitutional", "bg-indigo",
-         "Your constitutional rights under the Indian Constitution."),
-        ("💳", "Cheque Bounce", "Business", "bg-fuchsia",
-         "Section 138 NI Act, notices, and legal remedies."),
+    st.markdown("## Popular topics")
+
+    topics = [
+        "FIR and police complaints",
+        "Consumer rights",
+        "Cybercrime",
+        "Women and child rights",
+        "Traffic and vehicle laws",
+        "Online fraud",
     ]
 
-    visible = ALL_TOPICS if topic_filter == "All" else [t for t in ALL_TOPICS if t[2] == topic_filter]
+    cols = st.columns(3)
+    for index, topic in enumerate(topics):
+        with cols[index % 3]:
+            st.markdown(
+                f"""
+<div class="card">
+<h3>{safe_text(topic)}</h3>
+<p class="small-muted">Ask the AI for a general explanation.</p>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
 
-    if not visible:
-        st.info("No topics in this category yet.")
-    else:
-        cols = st.columns(3)
-        for i, (icon, title, cat, theme, desc) in enumerate(visible):
-            with cols[i % 3]:
-                image_card(icon, title, desc, theme=theme, tag=cat)
+    show_disclaimer()
 
-    # ---------- AUDIENCE ----------
-    st.markdown('<div class="section-title">👥 Built for everyone</div>', unsafe_allow_html=True)
 
-    a, b, c = st.columns(3)
-    with a:
-        image_card("👨‍👩‍👧", "Common People",
-                   "Understand legal terminology and everyday legal concepts more easily.",
-                   theme="bg-emerald", tag="EVERYONE")
-    with b:
-        image_card("🎓", "Students",
-                   "Learn legal concepts through simplified explanations and structured summaries.",
-                   theme="bg-violet", tag="LEARNING")
-    with c:
-        image_card("💼", "Professionals",
-                   "Quickly explore general information before consulting a professional.",
-                   theme="bg-slate", tag="PRO")
+# ============================================================
+# EXPLAIN JUDGMENT
+# ============================================================
 
-    # ---------- DISCLAIMER ----------
-    st.markdown(
-        """
-        <div class="warning-box">
-            <strong>⚠️ Important</strong><br><br>
-            My Lawyer Friend provides general legal information for educational
-            and informational purposes.<br><br>
-            It does not provide legal representation, create a lawyer-client
-            relationship, or replace advice from a qualified legal professional.<br><br>
-            Always verify important information against official legal sources.
-        </div>
-        """,
-        unsafe_allow_html=True,
+elif page == "Explain a Judgment":
+    st.title("📄 Explain a Judgment")
+    st.write(
+        "Upload a text-based PDF judgment. The AI will organize the document into "
+        "plain-language sections."
     )
 
-
-# ============================================================
-# EXPLAIN A JUDGMENT
-# ============================================================
-
-elif st.session_state.page == "Explain a Judgment":
-
-    st.title("📄 Explain a Judgment")
-    st.write("Upload an Indian court judgment PDF and understand it in simpler language.")
-
-    st.info("💡 Text-based PDFs work best. Scanned/image-only PDFs may require OCR.")
-
-    uploaded_file = st.file_uploader(
+    uploaded = st.file_uploader(
         "Upload judgment PDF",
         type=["pdf"],
-        help="Upload a court judgment PDF.",
+        help="Text-based PDFs work best.",
     )
 
-    if uploaded_file:
-        size_kb = uploaded_file.size / 1024
-        st.success(f"✅ {uploaded_file.name} uploaded")
-        st.caption(f"File size: {size_kb:,.1f} KB")
-        st.divider()
+    if uploaded:
+        st.success(f"Selected: {uploaded.name}")
 
-        if st.button("⚖️ Analyze Judgment", type="primary", use_container_width=True):
+        if st.button("🤖 Analyze Judgment", type="primary"):
             if not require_ai():
                 st.stop()
 
-            try:
-                with st.spinner("📖 Reading the judgment..."):
-                    document_text = extract_pdf_text(uploaded_file)
+            with st.spinner("Reading and analyzing the judgment..."):
+                pdf_text = extract_pdf_text(uploaded)
 
-                if not document_text.strip():
-                    st.error("No readable text was found inside this PDF.")
-                    st.info("This appears to be a scanned/image-only PDF. OCR support can be added later.")
-                    st.stop()
+                if pdf_text:
+                    prompt = f"""
+You are an Indian legal information assistant.
 
-                document_text = document_text[:60000]
+Analyze the following judgment for educational purposes.
 
-                prompt = f"""
-You are "My Lawyer Friend", an Indian legal-information assistant.
+IMPORTANT:
+- Do not present this as personalized legal advice.
+- Do not invent facts, citations, statutes, dates, judges, holdings, or case details.
+- If something is unclear from the document, say so.
+- Explain difficult legal terminology in simple English.
+- Clearly distinguish what the judgment says from your explanation.
 
-Analyze the court judgment provided below. The user wants a simple
-explanation, not personalized legal advice.
+Use these sections:
 
-IMPORTANT RULES:
-1. Only use information contained in the document.
-2. Do not invent facts, sections or laws.
-3. If something is unavailable, write: "Not stated in the document."
-4. Clearly distinguish the court's decision from your explanation.
-5. Preserve important legal terminology.
-6. Do not claim to be a lawyer.
-7. Do not provide personalized legal advice.
+1. Case name and citation
+2. Court and date
+3. Parties
+4. Background facts
+5. Legal questions/issues
+6. Relevant laws and sections
+7. Arguments/positions mentioned
+8. Court's reasoning
+9. Decision/holding
+10. Important observations
+11. Practical meaning
+12. Key takeaways
+13. Important limitations or uncertainties
 
-Use exactly these sections:
-
-# 1. Case Title
-# 2. Court
-# 3. Date
-# 4. Parties
-# 5. Case Background
-# 6. Important Facts
-# 7. Legal Issues
-# 8. Arguments
-# 9. Important Laws / Sections
-# 10. Court's Reasoning
-# 11. Final Decision
-# 12. Simple Explanation
-# 13. Important Takeaways
-
-COURT JUDGMENT:
-
-{document_text}
+Judgment text:
+{pdf_text}
 """
 
-                with st.spinner("🧠 AI is analyzing the judgment..."):
-                    analysis = generate_ai(prompt)
+                    answer = generate_ai(prompt)
 
-                st.success("✅ Judgment analysis completed")
-                st.divider()
-                st.subheader("⚖️ Judgment Explanation")
-                st.markdown(analysis)
+                    if answer:
+                        st.markdown("## Analysis")
+                        st.markdown(answer)
 
-                st.download_button(
-                    label="⬇️ Download Explanation",
-                    data=analysis,
-                    file_name="my_lawyer_friend_analysis.txt",
-                    mime="text/plain",
-                    use_container_width=True,
-                )
+                        add_history(
+                            "Judgment",
+                            uploaded.name,
+                            answer,
+                        )
 
-                add_history("Judgment Analysis", uploaded_file.name)
+                        st.download_button(
+                            "⬇️ Download explanation",
+                            data=answer,
+                            file_name="judgment_explanation.txt",
+                            mime="text/plain",
+                        )
 
-                st.divider()
-                st.warning(
-                    "⚠️ AI-generated legal information may contain errors. "
-                    "Verify important details against the original judgment "
-                    "and consult a qualified lawyer for specific legal matters."
-                )
-
-            except Exception as error:
-                st.error("Something went wrong while analyzing the judgment.")
-                st.caption(f"Technical details: {error}")
-
-    else:
-        st.markdown('<div class="section-title">What you will get</div>', unsafe_allow_html=True)
-
-        features = [
-            ("📌", "Case title & court", "bg-indigo"),
-            ("📅", "Judgment date", "bg-sky"),
-            ("👥", "Parties involved", "bg-violet"),
-            ("📖", "Background & facts", "bg-amber"),
-            ("⚖️", "Legal issues", "bg-orange"),
-            ("🗣️", "Arguments", "bg-teal"),
-            ("📚", "Laws & sections", "bg-emerald"),
-            ("🧠", "Court's reasoning", "bg-rose"),
-            ("🏛️", "Final decision", "bg-slate"),
-            ("💡", "Simple explanation", "bg-fuchsia"),
-            ("📝", "Key takeaways", "bg-cyan"),
-        ]
-
-        cols = st.columns(3)
-        for i, (icon, title, theme) in enumerate(features):
-            with cols[i % 3]:
-                image_card(icon, title, "Included in the AI-generated explanation.", theme=theme)
+    show_disclaimer()
 
 
 # ============================================================
 # LEGAL Q&A
 # ============================================================
 
-elif st.session_state.page == "Legal Q&A":
-
+elif page == "Legal Q&A":
     st.title("🧠 Legal Q&A")
-    st.write("Ask a general legal-information question in simple language.")
+    st.write("Ask a general legal-information question.")
+
+    suggestions = [
+        "What is an FIR in India?",
+        "What are basic consumer rights?",
+        "What should I do after an online fraud?",
+        "What is a legal notice?",
+        "What is the difference between civil and criminal cases?",
+        "What are basic cybercrime reporting options?",
+    ]
+
+    selected_suggestion = st.selectbox(
+        "Choose an example or write your own question",
+        [""] + suggestions,
+    )
 
     question = st.text_area(
         "Your question",
-        placeholder="Example: What is an FIR and when can a person file one?",
-        height=150,
+        value=selected_suggestion,
+        height=130,
+        placeholder="Example: What is an FIR in India?",
     )
 
-    if st.button("🤖 Get Explanation", type="primary", use_container_width=True):
+    if st.button("🤖 Get Explanation", type="primary"):
         if not question.strip():
-            st.warning("Please enter your question first.")
-        elif not require_ai():
-            st.stop()
-        else:
-            try:
-                prompt = f"""
-You are "My Lawyer Friend", an Indian legal-information assistant.
+            st.warning("Please enter a question.")
+        elif require_ai():
+            prompt = f"""
+You are My Lawyer Friend, an Indian legal information assistant.
 
-Answer the following question for an ordinary person in India.
+Answer this question for educational purposes:
 
-QUESTION:
 {question}
 
-RULES:
-- Provide general legal information only.
-- Do not claim to be the user's lawyer.
-- Do not provide personalized legal advice.
-- Do not create a lawyer-client relationship.
-- Do not invent laws or facts.
-- Explain complicated concepts simply.
-- Mention relevant legal provisions only when reasonably supported.
-- State when information may depend on facts.
-- Laws can change — recommend checking official sources for important matters.
+Rules:
+- Focus on Indian law unless the user specifies another jurisdiction.
+- Use simple language.
+- Do not pretend to be the user's lawyer.
+- Do not give personalized legal advice.
+- Do not invent sections, cases, deadlines, procedures, or penalties.
+- Where current law may matter, tell the user to verify with an official source or qualified lawyer.
+- If the question is unclear, state the assumption you are making.
+- Structure the answer with headings and bullet points when useful.
 """
 
-                with st.spinner("🧠 Preparing explanation..."):
-                    answer = generate_ai(prompt)
+            with st.spinner("Preparing explanation..."):
+                answer = generate_ai(prompt)
 
-                st.success("Explanation generated")
-                st.divider()
+            if answer:
+                st.markdown("## Answer")
                 st.markdown(answer)
 
-                add_history("Legal Q&A", question)
-
-                st.warning(
-                    "⚠️ General legal information only. For a specific legal "
-                    "matter, consult a qualified legal professional."
+                add_history(
+                    "Legal Q&A",
+                    question.strip(),
+                    answer,
                 )
 
-            except Exception as error:
-                st.error("Unable to generate the explanation.")
-                st.caption(f"Technical details: {error}")
-
-    # Suggested prompts as image cards
-    st.markdown('<div class="section-title">💡 Try these questions</div>', unsafe_allow_html=True)
-
-    suggestions = [
-        ("🚔", "How do I file an FIR?", "bg-slate"),
-        ("🛍️", "What are my consumer rights?", "bg-orange"),
-        ("🏠", "Can my landlord evict me without notice?", "bg-sky"),
-        ("💼", "Can my employer withhold my salary?", "bg-teal"),
-        ("📄", "How do I file an RTI application?", "bg-cyan"),
-        ("💳", "What happens if a cheque bounces?", "bg-fuchsia"),
-    ]
-
-    cols = st.columns(3)
-    for i, (icon, q, theme) in enumerate(suggestions):
-        with cols[i % 3]:
-            image_card(icon, q, "Click 'Get Explanation' after pasting this into the box.", theme=theme, tag="EXAMPLE")
+    show_disclaimer()
 
 
 # ============================================================
 # SEARCH CASES
 # ============================================================
 
-elif st.session_state.page == "Search Cases":
-
-    st.title("🔍 Search Cases")
-    st.write("Find Indian legal resources by case name, keyword or court.")
+elif page == "Search Cases":
+    st.title("🔎 Search Legal Resources")
 
     st.info(
-        "🚧 Live case-data integration is under development. "
-        "Below is a working filter foundation plus curated official links."
+        "Live court-database integration is not enabled in this version. "
+        "Use the trusted resources below for direct searching."
     )
 
-    # -------- FILTER BAR --------
-    f1, f2, f3 = st.columns([2, 2, 2])
-    with f1:
-        search_term = st.text_input("Case name or keyword", placeholder="e.g. consumer protection")
-    with f2:
-        court = st.selectbox(
-            "Court",
-            ["All Courts", "Supreme Court of India", "High Courts", "District Courts"],
-        )
-    with f3:
-        category = st.selectbox(
-            "Category",
-            ["All Categories", "Constitutional", "Criminal", "Civil", "Consumer", "Family", "Tax"],
-        )
-
-    if st.button("🔍 Search", type="primary", use_container_width=True):
-        if not search_term.strip():
-            st.warning("Please enter a search term.")
-        else:
-            add_history("Case Search", f"{search_term} · {court} · {category}")
-            st.success("Search request prepared.")
-            st.write(f"**Keyword:** {search_term}")
-            st.write(f"**Court:** {court}")
-            st.write(f"**Category:** {category}")
-
-    st.divider()
-
-    # -------- OFFICIAL LINKS (IMAGE CARDS) --------
-    st.markdown('<div class="section-title">🇮🇳 Official legal resources</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="section-subtitle">Verified government sources for authentic information.</div>',
-        unsafe_allow_html=True,
+    keyword = st.text_input(
+        "What are you looking for?",
+        placeholder="Example: consumer complaint, bail, cybercrime",
     )
+
+    court = st.selectbox(
+        "Court / source",
+        [
+            "All",
+            "Supreme Court of India",
+            "eCourts",
+            "India Code",
+            "Indian Kanoon",
+            "NHRC",
+            "NCW",
+        ],
+    )
+
+    if keyword:
+        st.markdown("### Suggested search")
+        st.code(f"{keyword} {court if court != 'All' else ''}".strip())
 
     resources = [
-        ("⚖️", "Supreme Court of India", "https://www.sci.gov.in/", "bg-indigo",
-         "Official judgments, cause lists, and court information."),
-        ("🏛️", "eCourts Services", "https://ecourts.gov.in/", "bg-emerald",
-         "Case status, orders, and court services across India."),
-        ("📚", "India Code", "https://www.indiacode.nic.in/", "bg-amber",
-         "Central laws and legislation of India."),
-        ("📜", "Indian Kanoon", "https://indiankanoon.org/", "bg-slate",
-         "Free search across Indian judgments and statutes."),
-        ("🛡️", "NHRC", "https://nhrc.nic.in/", "bg-rose",
-         "National Human Rights Commission."),
-        ("👩", "NCW", "https://ncw.nic.in/", "bg-fuchsia",
-         "National Commission for Women."),
+        (
+            "Supreme Court of India",
+            "Official Supreme Court website and case-related information.",
+            "https://www.sci.gov.in/",
+        ),
+        (
+            "eCourts",
+            "Indian judiciary services and case information.",
+            "https://ecourts.gov.in/",
+        ),
+        (
+            "India Code",
+            "Central laws and legislation database.",
+            "https://www.indiacode.nic.in/",
+        ),
+        (
+            "Indian Kanoon",
+            "Legal database for searching judgments and legal materials.",
+            "https://indiankanoon.org/",
+        ),
+        (
+            "National Human Rights Commission",
+            "Human-rights information and complaint resources.",
+            "https://nhrc.nic.in/",
+        ),
+        (
+            "National Commission for Women",
+            "Information and resources relating to women's rights.",
+            "https://www.ncw.gov.in/",
+        ),
     ]
 
-    cols = st.columns(3)
-    for i, (icon, name, url, theme, desc) in enumerate(resources):
-        with cols[i % 3]:
-            image_card(icon, name, desc, theme=theme, tag="OFFICIAL")
-            st.link_button("Visit website →", url, use_container_width=True)
+    for name, description, url in resources:
+        st.markdown(
+            f"""
+<div class="card">
+<h3>{safe_text(name)}</h3>
+<p>{safe_text(description)}</p>
+<a href="{safe_text(url)}" target="_blank">Open resource →</a>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================
 # KNOW YOUR RIGHTS
 # ============================================================
 
-elif st.session_state.page == "Know Your Rights":
+elif page == "Know Your Rights":
+    st.title("🛡️ Know Your Rights")
 
-    st.title("⚖️ Know Your Rights")
-    st.write("Explore general legal-information topics.")
-
-    # -------- FILTER --------
-    rights_filter = st.radio(
-        "Filter",
-        ["All", "Everyday", "Constitutional", "Workplace"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key="rights_filter",
-    )
-
-    ALL_RIGHTS = [
-        ("🚔", "Police & FIR", "Everyday", "bg-slate",
-         "General information about complaints, FIRs and police procedures."),
-        ("🛍️", "Consumer Rights", "Everyday", "bg-orange",
-         "Consumer complaints, refunds, and consumer protection."),
-        ("💻", "Cyber Crime", "Everyday", "bg-violet",
-         "Online fraud, cybercrime and how to report incidents."),
-        ("🏠", "Property", "Everyday", "bg-sky",
-         "Property-related legal concepts and disputes."),
-        ("💼", "Employment", "Workplace", "bg-teal",
-         "Workplace rights, salaries, and employment-related concepts."),
-        ("📄", "RTI", "Constitutional", "bg-cyan",
-         "Right to Information — filing, appeals and transparency."),
-        ("👨‍👩‍👧", "Family Law", "Everyday", "bg-rose",
-         "Common family-law concepts."),
-        ("🛡️", "Fundamental Rights", "Constitutional", "bg-indigo",
-         "Fundamental rights under the Indian Constitution."),
+    categories = [
+        "All",
+        "Police",
+        "Consumers",
+        "Cyber Safety",
+        "Women",
+        "General",
     ]
 
-    visible = ALL_RIGHTS if rights_filter == "All" else [r for r in ALL_RIGHTS if r[2] == rights_filter]
+    category = st.selectbox("Filter by category", categories)
 
-    if not visible:
-        st.info("No topics in this category yet.")
-    else:
-        cols = st.columns(3)
-        for i, (icon, title, cat, theme, desc) in enumerate(visible):
-            with cols[i % 3]:
-                image_card(icon, title, desc, theme=theme, tag=cat)
+    rights = [
+        (
+            "Police",
+            "FIR basics",
+            "An FIR is a formal record of information relating to a cognizable offence. Procedures and circumstances can vary, so verify the current law and official police guidance.",
+        ),
+        (
+            "Consumers",
+            "Consumer complaints",
+            "Consumers can use India's consumer-protection mechanisms for eligible disputes involving goods or services.",
+        ),
+        (
+            "Cyber Safety",
+            "Online fraud",
+            "For suspected financial cyber fraud, act quickly and use official cybercrime reporting and banking channels.",
+        ),
+        (
+            "Women",
+            "Safety and support",
+            "There are legal protections and government support mechanisms for women facing harassment, violence or other offences.",
+        ),
+        (
+            "General",
+            "Legal assistance",
+            "People who cannot afford private legal representation may be eligible for legal-aid services depending on applicable rules.",
+        ),
+    ]
 
-    st.markdown(
-        """
-        <div class="info-box">
-            <strong>📌 Important</strong><br><br>
-            The information on this page is educational and general in nature.
-            Specific legal rights and procedures can depend on the facts and
-            applicable law.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    filtered = rights if category == "All" else [
+        item for item in rights if item[0] == category
+    ]
+
+    for item_category, title, description in filtered:
+        st.markdown(
+            f"""
+<div class="card">
+<div class="small-muted">{safe_text(item_category)}</div>
+<h3>{safe_text(title)}</h3>
+<p>{safe_text(description)}</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    show_disclaimer()
 
 
 # ============================================================
 # HISTORY
 # ============================================================
 
-elif st.session_state.page == "History":
-
-    st.title("📚 History")
-    st.write("Your recent activity during this session.")
+elif page == "History":
+    st.title("🕘 History")
 
     if not st.session_state.history:
-        st.info("No activity yet.")
+        st.info("No activity in this session yet.")
     else:
-        # category filter
-        cats = ["All"] + sorted({item["category"] for item in st.session_state.history})
-        h_filter = st.radio(
-            "Filter",
-            cats,
-            horizontal=True,
-            label_visibility="collapsed",
-            key="history_filter",
-        )
-
-        items = st.session_state.history if h_filter == "All" else [
-            i for i in st.session_state.history if i["category"] == h_filter
-        ]
-
-        # pick icon/theme by category
-        theme_map = {
-            "Judgment Analysis": ("📄", "bg-indigo"),
-            "Legal Q&A": ("🧠", "bg-amber"),
-            "Case Search": ("🔍", "bg-emerald"),
-        }
-
-        for item in reversed(items):
-            icon, theme = theme_map.get(item["category"], ("📌", "bg-slate"))
-            image_card(
-                icon,
-                item["category"],
-                f'{item["text"]}<br><br><span style="color:#98a2b3;font-size:12px;">{item["time"]}</span>',
-                theme=theme,
-                tag="SESSION",
-            )
-
-        st.divider()
-        if st.button("🗑️ Clear History", use_container_width=True):
+        if st.button("Clear session history"):
             st.session_state.history = []
-            st.success("History cleared.")
             st.rerun()
+
+        for item in st.session_state.history:
+            with st.expander(
+                f"{item['category']} — {item['title']} — {item['time']}"
+            ):
+                st.markdown(item["content"])
 
 
 # ============================================================
 # ABOUT
 # ============================================================
 
-elif st.session_state.page == "About":
+elif page == "About":
+    st.title("ℹ️ About My Lawyer Friend")
 
-    st.title("⚖️ About My Lawyer Friend")
-
-    image_card(
-        "🇮🇳",
-        "What is My Lawyer Friend?",
-        "A student-built Indian legal-information platform designed to make "
-        "legal concepts, judgments and legal terminology easier to understand.",
-        theme="bg-indigo",
-        tag="MISSION",
+    st.markdown(
+        """
+<div class="card">
+<h3>Mission</h3>
+<p>
+Make Indian legal information easier to understand for students and ordinary
+users through a simple, responsible interface.
+</p>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="section-title">🎯 Vision</div>', unsafe_allow_html=True)
-    st.write("Make useful legal information easier to discover and understand.")
+    st.markdown(
+        """
+### Current features
 
-    st.markdown('<div class="section-title">🚀 Roadmap</div>', unsafe_allow_html=True)
+- AI-powered general legal Q&A
+- PDF judgment explanation
+- Legal-resource directory
+- Rights information
+- Session history
+- Mobile-friendly interface
 
-    roadmap = [
-        ("v1.0", "Premium UI and navigation", "bg-slate"),
-        ("v1.1", "Judgment upload and Q&A", "bg-sky"),
-        ("v1.2", "Gemini AI document analysis", "bg-indigo"),
-        ("v1.3", "Responsive mobile-first redesign", "bg-violet"),
-        ("v1.4", "Image-card system + live filters", "bg-emerald"),
-        ("v1.5", "Official Indian case-data integration", "bg-amber"),
-        ("v1.6", "User accounts and saved research", "bg-rose"),
-        ("v2.0", "Advanced legal research assistant", "bg-fuchsia"),
-    ]
+### Planned improvements
 
-    cols = st.columns(4)
-    for i, (ver, feat, theme) in enumerate(roadmap):
-        with cols[i % 4]:
-            image_card("🚀", ver, feat, theme=theme, tag="ROADMAP")
-
-    st.divider()
-    st.subheader("👨‍💻 Project")
-    st.code(
-        f"My Lawyer Friend\n"
-        f"Indian Legal Information Platform\n"
-        f"Version {APP_VERSION}\n"
-        f"Built as a CSE student portfolio project."
+- Verified case-search integration
+- Better scanned-PDF/OCR support
+- Source citations
+- User accounts
+- Saved documents
+- Multilingual support
+- Stronger privacy controls
+- Official API integrations where permitted
+"""
     )
+
+    show_disclaimer()
 
 
 # ============================================================
@@ -1190,12 +839,10 @@ elif st.session_state.page == "About":
 
 st.markdown(
     """
-    <div class="footer">
-        ⚖️ <strong>My Lawyer Friend</strong><br>
-        Legal information made simple · 🇮🇳 India<br><br>
-        Built as an open-source CSE project.<br>
-        General information only · Not legal advice
-    </div>
-    """,
+<div class="footer">
+    My Lawyer Friend · Educational legal-information project ·
+    Not a substitute for professional legal advice
+</div>
+""",
     unsafe_allow_html=True,
 )
